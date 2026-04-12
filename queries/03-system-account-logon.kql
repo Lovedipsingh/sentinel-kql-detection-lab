@@ -1,0 +1,35 @@
+// DETECTION QUERY 3 — SYSTEM Account Network Logon
+// Flags NT AUTHORITY\SYSTEM logons using network or remote interactive logon types
+// Excludes LogonType 5 (Service) to reduce false positives
+// MITRE: T1078.003 — Valid Accounts: Local Accounts
+
+let Lookback = 1h;
+
+SecurityEvent
+| where TimeGenerated >= ago(Lookback)
+| where EventID == 4624
+// Exact match for SYSTEM account - do NOT use "contains" or "has"
+| where Account =~ @"NT AUTHORITY\SYSTEM"
+// LogonType 3 = Network, LogonType 10 = RemoteInteractive
+// Excluded LogonType 5 (Service) - legitimate and noisy
+| where LogonType in (3, 10)
+| where IpAddress !in ("-", "", "127.0.0.1", "::1")
+| extend Severity = "HIGH"
+| extend Description = case(
+    LogonType == 3,  "SYSTEM network logon detected - review for lateral movement or remote service activity",
+    LogonType == 10, "SYSTEM remote interactive logon detected - review for RDP abuse or session hijacking",
+    "SYSTEM logon detected"
+)
+| project TimeGenerated,
+          Account,
+          Computer,
+          IpAddress,
+          LogonType,
+          Severity,
+          Description
+
+// TUNING NOTES:
+// - Exclude approved management tooling: | where IpAddress !in ("10.0.1.5", "10.0.1.6")
+// - Exclude backup agents and remote admin platforms after validation
+// - LogonType 3 is common for legitimate remote service activity - review context carefully
+// - LogonType 10 is rare and high-confidence for SYSTEM - investigate immediately

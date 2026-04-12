@@ -1,0 +1,13 @@
+ 
+// DETECTION QUERY 4 — Logon Outside Business Hours
+// Flags successful logons before 7AM or after 7PM
+// Supports insider threat and compromised credential detection
+// MITRE: T1078 — Valid Accounts
+SecurityEvent
+| where EventID == 4624
+| extend HourOfDay = datetime_part("hour", TimeGenerated)
+| where HourOfDay < 7 or HourOfDay >= 19
+| where Account !contains "SYSTEM"
+| extend Severity = "MEDIUM"
+| extend Description = strcat("Logon outside business hours at ", tostring(HourOfDay), ":00")
+| project TimeGenerated, Account, Computer, IpAddress, HourOfDay, Severity, Description

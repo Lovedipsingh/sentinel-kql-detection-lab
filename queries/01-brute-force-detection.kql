@@ -1,0 +1,38 @@
+// DETECTION QUERY 1 — Brute Force Detection
+// Flags accounts with 5+ failed logon attempts within 15 minutes
+// MITRE: T1110 — Brute Force
+
+let Lookback = 15m;
+let FailureThreshold = 5;
+
+SecurityEvent
+| where TimeGenerated >= ago(Lookback)
+| where EventID == 4625
+| where isnotempty(Account) and isnotempty(Computer)
+| where IpAddress !in ("-", "", "127.0.0.1", "::1")
+| summarize FailedAttempts = count(),
+            FirstAttempt = min(TimeGenerated),
+            LastAttempt = max(TimeGenerated)
+    by Account, Computer, IpAddress
+| where FailedAttempts >= FailureThreshold
+| extend Severity = "HIGH"
+| extend Description = strcat(
+    "Possible brute force: ",
+    tostring(FailedAttempts),
+    " failed logons within ",
+    tostring(Lookback)
+)
+| project TimeDetected = now(),
+          Account,
+          Computer,
+          IpAddress,
+          FailedAttempts,
+          FirstAttempt,
+          LastAttempt,
+          Severity,
+          Description
+
+// TUNING NOTES:
+// - Exclude known noisy service accounts: | where Account !in ("scanner@domain.com", "probe_account")
+// - Exclude vulnerability scanners: | where IpAddress !in ("192.168.1.10", "10.0.0.50")
+// - Adjust threshold based on environment: typical range is 3-10 failures

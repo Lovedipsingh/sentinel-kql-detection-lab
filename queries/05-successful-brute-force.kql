@@ -1,0 +1,68 @@
+// DETECTION QUERY 5 — Successful Logon After Multiple Failures
+// Correlates repeated failed logons with a later successful logon from the same source
+// Requires success to occur AFTER failures and within a defined time window
+// MITRE: T1110 — Brute Force
+
+let Lookback = 1h;
+let FailureThreshold = 3;
+let CorrelationWindow = 30m;
+
+// Step 1: Identify accounts with multiple failed logons
+let FailedLogons =
+    SecurityEvent
+    | where TimeGenerated >= ago(Lookback)
+    | where EventID == 4625
+    | where IpAddress !in ("-", "", "127.0.0.1", "::1")
+    | summarize FailCount = count(),
+                FirstFail = min(TimeGenerated),
+                LastFail = max(TimeGenerated)
+        by Account, Computer, IpAddress
+    | where FailCount >= FailureThreshold;
+
+// Step 2: Identify successful logons
+let SuccessfulLogons =
+    SecurityEvent
+    | where TimeGenerated >= ago(Lookback)
+    | where EventID == 4624
+    | where IpAddress !in ("-", "", "127.0.0.1", "::1")
+    | project Account, Computer, IpAddress, SuccessTime = TimeGenerated;
+
+// Step 3: Correlate - success must occur AFTER failures from same Account+Computer+IP
+SuccessfulLogons
+| join kind=inner FailedLogons on Account, Computer, IpAddress
+| where SuccessTime > LastFail                          // Success after last failure
+| where SuccessTime <= LastFail + CorrelationWindow     // Within correlation window
+| summarize FirstSuccess = min(SuccessTime),
+            LastSuccess = max(SuccessTime),
+            SuccessCount = count(),
+            FailCount = max(FailCount),
+            FirstFail = min(FirstFail),
+            LastFail = max(LastFail)
+    by Account, Computer, IpAddress
+| extend Severity = "CRITICAL"
+| extend Description = strcat(
+    "Successful logon from same source after ",
+    tostring(FailCount),
+    " failed attempts within ",
+    tostring(CorrelationWindow),
+    " - possible successful brute force"
+)
+| project FirstSuccess,
+          LastSuccess,
+          Account,
+          Computer,
+          IpAddress,
+          SuccessCount,
+          FailCount,
+          FirstFail,
+          LastFail,
+          Severity,
+          Description
+| order by FailCount desc, LastSuccess desc
+
+// TUNING NOTES:
+// - This version correlates on Account+Computer+IpAddress (strict - low false positives)
+// - For a broader detection, create a second query that correlates on Account only
+//   (catches credential reuse from different IPs - higher false positive rate)
+// - Adjust CorrelationWindow based on environment: 15m-1h typical range
+// - Exclude known scanning/testing activity during maintenance windows

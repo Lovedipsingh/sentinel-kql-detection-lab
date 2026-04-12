@@ -1,0 +1,39 @@
+// DETECTION QUERY 4 — After-Hours Logon
+// Flags successful logons before 7AM or after 7PM
+// Time evaluation is in UTC - convert for production use
+// MITRE: T1078 — Valid Accounts
+
+let Lookback = 3d;
+let BusinessStartHour = 7;   // 7 AM UTC
+let BusinessEndHour = 19;    // 7 PM UTC
+
+SecurityEvent
+| where TimeGenerated >= ago(Lookback)
+| where EventID == 4624
+// Exclude system accounts and Windows noise accounts
+| where Account !contains "SYSTEM"
+| where Account !startswith "DWM-"      // Desktop Window Manager
+| where Account !startswith "UMFD-"     // User Mode Font Driver
+| where Account !endswith "$"           // Machine accounts
+| extend HourOfDay = datetime_part("hour", TimeGenerated)
+| where HourOfDay < BusinessStartHour or HourOfDay >= BusinessEndHour
+| extend Severity = "MEDIUM"
+| extend Description = strcat(
+    "Logon outside business hours at ",
+    format_datetime(TimeGenerated, "yyyy-MM-dd HH:mm:ss"),
+    " UTC (Hour: ", tostring(HourOfDay), ")"
+)
+| project TimeGenerated,
+          Account,
+          Computer,
+          IpAddress,
+          HourOfDay,
+          Severity,
+          Description
+
+// TUNING NOTES:
+// - This query evaluates time in UTC. For production, adjust business hours to match UTC offset:
+//   Example: EST is UTC-5, so 7 AM EST = 12 PM UTC
+// - Alternatively, use datetime_add() to shift TimeGenerated to local timezone
+// - Exclude approved after-hours users: | where Account !in ("oncall_admin", "shift_worker")
+// - Exclude known batch jobs and scheduled tasks

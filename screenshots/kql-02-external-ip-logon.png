@@ -1,0 +1,18 @@
+ 
+// DETECTION QUERY 5 — Successful Logon After Multiple Failures
+// Correlates failed and successful logons to identify successful brute force
+// Highest confidence indicator of credential compromise
+// MITRE: T1110 — Brute Force
+let FailedLogons = SecurityEvent
+    | where EventID == 4625
+    | summarize FailCount = count() by Account, Computer
+    | where FailCount >= 3;
+let SuccessfulLogons = SecurityEvent
+    | where EventID == 4624
+    | project Account, Computer, SuccessTime = TimeGenerated, IpAddress;
+SuccessfulLogons
+| join kind=inner FailedLogons on Account, Computer
+| extend Severity = "CRITICAL"
+| extend Description = strcat("Successful logon after ", tostring(FailCount), " failed attempts — possible successful brute force")
+| project SuccessTime, Account, Computer, IpAddress, FailCount, Severity, Description
+| order by FailCount desc

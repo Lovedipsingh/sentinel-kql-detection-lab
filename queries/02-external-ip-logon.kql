@@ -1,0 +1,48 @@
+// DETECTION QUERY 2 — External IP Logon Anomaly
+// Flags logon activity from non-private IPv4 addresses
+// Excludes RFC1918, loopback, APIPA, and link-local ranges
+// MITRE: T1078 — Valid Accounts
+
+let Lookback = 1h;
+
+SecurityEvent
+| where TimeGenerated >= ago(Lookback)
+| where EventID in (4624, 4625)
+| where isnotempty(IpAddress)
+// Exclude private IPv4 ranges using native KQL functions
+| where not(ipv4_is_in_range(IpAddress, "10.0.0.0/8"))
+| where not(ipv4_is_in_range(IpAddress, "192.168.0.0/16"))
+| where not(ipv4_is_in_range(IpAddress, "172.16.0.0/12"))
+| where not(ipv4_is_in_range(IpAddress, "169.254.0.0/16")) // APIPA
+| where IpAddress !in ("127.0.0.1", "::1", "-", "")
+// Exclude IPv6 private/link-local ranges
+| where not(IpAddress startswith "fe80:")  // link-local
+| where not(IpAddress startswith "fc00:")  // unique local
+| where not(IpAddress startswith "fd00:")  // unique local
+| summarize AttemptCount = count(),
+            SuccessCount = countif(EventID == 4624),
+            FailureCount = countif(EventID == 4625),
+            FirstSeen = min(TimeGenerated),
+            LastSeen = max(TimeGenerated)
+    by Account, Computer, IpAddress
+| extend Severity = iff(SuccessCount > 0, "HIGH", "MEDIUM")
+| extend Description = iff(
+    SuccessCount > 0,
+    "Successful logon from external IP address",
+    "Failed logon attempts from external IP address"
+)
+| project Account,
+          Computer,
+          IpAddress,
+          AttemptCount,
+          SuccessCount,
+          FailureCount,
+          FirstSeen,
+          LastSeen,
+          Severity,
+          Description
+
+// TUNING NOTES:
+// - Allowlist VPN egress IPs: | where IpAddress !in ("203.0.113.5", "198.51.100.10")
+// - Allowlist cloud identity providers: | where IpAddress !has "okta.com" and IpAddress !has "azure"
+// - Allowlist known remote administration gateways
