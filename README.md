@@ -1,4 +1,4 @@
-# 🔵 Microsoft Sentinel — KQL Detection Lab
+# 🔵 Microsoft Sentinel - KQL Detection Lab
 
 ![Sentinel](https://img.shields.io/badge/Microsoft_Sentinel-SIEM-0078D4?style=flat&logo=microsoft)
 ![KQL](https://img.shields.io/badge/KQL-Query_Language-blue?style=flat)
@@ -6,13 +6,13 @@
 ![MITRE](https://img.shields.io/badge/MITRE-ATT%26CK-red?style=flat)
 ![Blue Team](https://img.shields.io/badge/Blue_Team-Defensive-blue?style=flat)
 
-> Microsoft Sentinel SIEM lab deployed in Azure — 5 KQL detection queries covering brute force attacks, external IP anomalies, SYSTEM account abuse, after-hours logons, and successful credential compromise. Includes a live automated Analytics Rule with MITRE ATT&CK mapping that generates incidents automatically.
+> Microsoft Sentinel SIEM lab deployed in Azure - 5 KQL detection queries covering brute force attacks, external IP anomalies, SYSTEM account abuse, after-hours logons, and successful credential compromise. Includes a live automated Analytics Rule with MITRE ATT&CK mapping that generates incidents automatically.
 
 ---
 
 ## 🎯 Objective
 
-Deploy Microsoft Sentinel in Azure, write production-grade KQL detection queries covering common attack patterns, and convert detections into automated Analytics Rules that generate actionable incidents — demonstrating end-to-end detection engineering workflow.
+Deploy Microsoft Sentinel in Azure, write production-grade KQL detection queries covering common attack patterns, and convert detections into automated Analytics Rules that generate actionable incidents - demonstrating end-to-end detection engineering workflow.
 
 ---
 
@@ -24,7 +24,7 @@ Deploy Microsoft Sentinel in Azure, write production-grade KQL detection queries
 | **Workspace** | soc-lab-sentinel |
 | **Query Language** | KQL (Kusto Query Language) |
 | **Data Source** | Windows Security Events (SecurityEvent table) |
-| **Analytics Rule** | Scheduled query — runs every 5 minutes, 15-minute lookback |
+| **Analytics Rule** | Scheduled query - runs every 5 minutes, 15-minute lookback |
 
 ---
 
@@ -36,8 +36,8 @@ Deployed a Microsoft Sentinel workspace in Azure and authored 5 production-ready
 
 ## 🔍 KQL Detection Queries
 
-### Query 1 — Brute Force Detection (T1110)
-**Description:** Flags accounts with 5+ failed logon attempts within 15 minutes — indicates password spray or brute force attack.
+### Query 1 - Brute Force Detection (T1110)
+**Description:** Flags accounts with 5+ failed logon attempts within 15 minutes - indicates password spray or brute force attack.
 
 **Key Improvements:**
 - Explicit 15-minute lookback window
@@ -86,7 +86,7 @@ SecurityEvent
 
 ---
 
-### Query 2 — External IP Logon Anomaly (T1078)
+### Query 2 - External IP Logon Anomaly (T1078)
 **Description:** Flags successful or failed logons from non-private IPv4 addresses, excluding RFC1918, loopback, APIPA, and IPv6 link-local ranges.
 
 **Key Improvements:**
@@ -134,8 +134,8 @@ SecurityEvent
 
 ---
 
-### Query 3 — SYSTEM Account Network Logon (T1078.003)
-**Description:** Flags NT AUTHORITY\SYSTEM logons using network (Type 3) or remote interactive (Type 10) logon types — consistent with lateral movement or C2 activity.
+### Query 3 - SYSTEM Account Network Logon (T1078.003)
+**Description:** Flags NT AUTHORITY\SYSTEM logons using network (Type 3) or remote interactive (Type 10) logon types - consistent with lateral movement or C2 activity.
 
 **Key Improvements:**
 - Exact match for `NT AUTHORITY\SYSTEM` (no partial matches)
@@ -165,12 +165,12 @@ SecurityEvent
 **Production Tuning:**
 - Exclude approved management tooling by source IP
 - Exclude backup agents and remote admin platforms after validation
-- LogonType 10 is rare for SYSTEM — investigate immediately
+- LogonType 10 is rare for SYSTEM - investigate immediately
 
 ---
 
-### Query 4 — Logon Outside Business Hours (T1078)
-**Description:** Flags successful logons before 7AM or after 7PM UTC — supports insider threat and compromised credential detection.
+### Query 4 - Logon Outside Business Hours (T1078)
+**Description:** Flags successful logons before 7AM or after 7PM UTC - supports insider threat and compromised credential detection.
 
 **Key Improvements:**
 - Explicit documentation that time evaluation is in UTC
@@ -209,8 +209,8 @@ SecurityEvent
 
 ---
 
-### Query 5 — Successful Logon After Multiple Failures (T1110)
-**Description:** Correlates repeated failed logons with a later successful logon from the same source within a defined time window — highest confidence indicator of successful credential compromise.
+### Query 5 - Successful Logon After Multiple Failures (T1110)
+**Description:** Correlates repeated failed logons with a later successful logon from the same source within a defined time window - highest confidence indicator of successful credential compromise.
 
 **Key Improvements:**
 - Temporal correlation: success must occur AFTER failures
@@ -273,13 +273,13 @@ SuccessfulLogons
 
 ---
 
-## 🚨 Analytics Rule — Live Detection
+## 🚨 Analytics Rule - Live Detection
 
 Query 1 (Brute Force Detection) was converted into a scheduled Analytics Rule running every 5 minutes in Microsoft Sentinel. When triggered, it automatically generates a HIGH severity incident mapped to MITRE T1110.
 
 | Setting | Value |
 |---|---|
-| **Rule name** | Brute Force Detection — Multiple Failed Logons |
+| **Rule name** | Brute Force Detection - Multiple Failed Logons |
 | **Severity** | High |
 | **Status** | Enabled |
 | **Run frequency** | Every 5 minutes |
@@ -290,7 +290,7 @@ Query 1 (Brute Force Detection) was converted into a scheduled Analytics Rule ru
 | **Alert grouping** | Group by matching entities |
 | **Suppression** | 1 hour |
 | **MITRE Tactic** | Credential Access |
-| **MITRE Technique** | T1110 — Brute Force |
+| **MITRE Technique** | T1110 - Brute Force |
 
 ![Analytics Rule](screenshots/kql-06-analytics-rule.png)
 
